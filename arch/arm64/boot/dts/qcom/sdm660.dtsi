@@ -306,6 +306,7 @@
 				1113600	83
 				1401600	146
 				1536000	158
+				1612800 183
 				1747200	228
 				1843200	285
 			>;
@@ -337,6 +338,7 @@
 				1113600	7
 				1401600	9
 				1536000	9
+				1612800 10
 				1747200	11
 				1843200	13
 			>;
@@ -520,12 +522,12 @@
 		};
 
 		cont_splash_mem: splash_region@9d400000 {
-			reg = <0x0 0x9d400000 0x0 0x2300000>;
+			reg = <0x0 0x9d400000 0x0 0x23ff000>;
 			label = "cont_splash_mem";
 		};
 
-		dfps_data_mem: dfps_data_mem@0x9f700000 {
-		       reg = <0 0x9f700000 0 0x00100000>;
+		dfps_data_mem: dfps_data_mem@0x9f7ff000 {
+		       reg = <0 0x9f800000 0 0x00001000>;
 		       label = "dfps_data_mem";
 		};
 	};
@@ -1107,6 +1109,8 @@
 		compatible = "qcom,arm-memlat-mon";
 		qcom,cpulist = <&CPU0 &CPU1 &CPU2 &CPU3>;
 		qcom,target-dev = <&cpu0_cpu_ddr_lat>;
+		qcom,cachemiss-ev = <0x17>;
+		qcom,stall-cycle-ev = <0xE7>;
 		qcom,core-dev-table =
 			< 902400 MHZ_TO_MBPS(200, 4) >,
 			< 1401600 MHZ_TO_MBPS(547, 4) >,
@@ -1117,6 +1121,8 @@
 		compatible = "qcom,arm-memlat-mon";
 		qcom,cpulist = <&CPU4 &CPU5 &CPU6 &CPU7>;
 		qcom,target-dev = <&cpu4_cpu_ddr_lat>;
+		qcom,cachemiss-ev = <0x17>;
+		qcom,stall-cycle-ev = <0xE7>;
 		qcom,core-dev-table =
 			< 1113600 MHZ_TO_MBPS(200, 4) >,
 			< 1401600 MHZ_TO_MBPS(1017, 4) >,

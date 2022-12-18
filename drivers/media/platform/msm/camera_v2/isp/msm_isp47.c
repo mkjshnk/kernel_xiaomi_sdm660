@@ -38,7 +38,11 @@
 #define VFE47_STATS_BURST_LEN 3
 #define VFE47_UB_SIZE_VFE0 2048
 #define VFE47_UB_SIZE_VFE1 1536
+#ifdef CONFIG_MACH_XIAOMI_LAVENDER
 #define VFE47_UB_STATS_SIZE 288
+#else
+#define VFE47_UB_STATS_SIZE 144
+#endif
 #define MSM_ISP47_TOTAL_IMAGE_UB_VFE0 (VFE47_UB_SIZE_VFE0 - VFE47_UB_STATS_SIZE)
 #define MSM_ISP47_TOTAL_IMAGE_UB_VFE1 (VFE47_UB_SIZE_VFE1 - VFE47_UB_STATS_SIZE)
 #define VFE47_WM_BASE(idx) (0xA0 + 0x2C * idx)
@@ -1438,7 +1442,7 @@ void msm_vfe47_cfg_camif(struct vfe_device *vfe_dev,
 		bus_sub_en = 0;
 
 	vfe_dev->dual_vfe_enable = camif_cfg->is_split;
-	vfe_dev->dual_vfe_sync_mode =
+	vfe_dev->dual_vfe_sync_mode = !msm_vfe_is_vfe48_660(vfe_dev) &&
 		(vfe_dev->dual_vfe_sync_enable && camif_cfg->is_split);
 
 	msm_camera_io_w(pix_cfg->input_mux << 5 | pix_cfg->pixel_pattern,

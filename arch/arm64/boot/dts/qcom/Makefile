@@ -75,6 +75,7 @@ dtb-$(CONFIG_ARCH_SM6150)	+= sa6155-adp-star.dtb \
 
 endif
 else
+ifeq (0,1)
 dtb-$(CONFIG_ARCH_QCOM)	+= apq8016-sbc.dtb
 dtb-$(CONFIG_ARCH_QCOM)	+= apq8096-db820c.dtb
 dtb-$(CONFIG_ARCH_QCOM)	+= ipq8074-hk01.dtb
@@ -82,6 +83,7 @@ dtb-$(CONFIG_ARCH_QCOM)	+= msm8916-mtp.dtb
 dtb-$(CONFIG_ARCH_QCOM)	+= msm8992-bullhead-rev-101.dtb
 dtb-$(CONFIG_ARCH_QCOM)	+= msm8994-angler-rev-101.dtb
 dtb-$(CONFIG_ARCH_QCOM)	+= msm8996-mtp.dtb
+endif
 dtb-$(CONFIG_ARCH_QCS403) += qcs403-iot-sku1.dtb \
 			qcs403-iot-sku3.dtb \
 			qcs403-iot-sku5.dtb \
@@ -423,6 +425,18 @@ dtb-$(CONFIG_ARCH_MDM9607) += mdm9607-cdp.dtb \
         mdm9607-mtp.dtb \
 	mdm9607-rcm.dtb \
 
+ifeq ($(CONFIG_MACH_XIAOMI_SDM660),y)
+ifeq ($(CONFIG_BUILD_ARM64_DT_OVERLAY),y)
+dtbo-$(CONFIG_MACH_XIAOMI_LAVENDER) += sdm660-mtp-lavender-overlay.dtbo
+sdm660-mtp-lavender-overlay.dtbo-base := sdm660-mtp-lavender.dtb
+else
+dtb-$(CONFIG_MACH_XIAOMI_LAVENDER) := sdm660-mtp-lavender.dtb
+dtb-$(CONFIG_MACH_XIAOMI_JASON) := sdm660-mtp-jason.dtb
+dtb-$(CONFIG_MACH_XIAOMI_TULIP) := sdm636-mtp-tulip.dtb
+dtb-$(CONFIG_MACH_XIAOMI_WAYNE) := sdm660-mtp-wayne.dtb sdm660-mtp-jasmine.dtb
+dtb-$(CONFIG_MACH_XIAOMI_WHYRED) := sdm636-mtp-whyred.dtb
+endif
+else
 ifeq ($(CONFIG_BUILD_ARM64_DT_OVERLAY),y)
 	dtbo-$(CONFIG_ARCH_SDM660) += \
 		sdm660-mtp-external-codec-overlay.dtbo \
@@ -484,7 +498,35 @@ dtb-$(CONFIG_ARCH_SDM660) += sdm660-sim.dtb \
 	sdm660-pm660a-headset-jacktype-no-cdp.dtb \
 	sdm660-pm660a-headset-jacktype-no-rcm.dtb \
 	sdm660-usbc-audio-mtp.dtb \
-	sdm660-usbc-audio-rcm.dtb
+	sdm660-usbc-audio-rcm.dtb \
+	sdm636-cdp.dtb \
+	sdm636-mtp.dtb \
+	sdm636-qrd.dtb \
+	sdm636-rcm.dtb \
+	sdm636-headset-jacktype-no-cdp.dtb \
+	sdm636-headset-jacktype-no-rcm.dtb \
+	sdm636-internal-codec-cdp.dtb \
+	sdm636-internal-codec-mtp.dtb \
+	sdm636-internal-codec-pm660a-cdp.dtb \
+	sdm636-internal-codec-pm660a-mtp.dtb \
+	sdm636-internal-codec-pm660a-rcm.dtb \
+	sdm636-internal-codec-rcm.dtb \
+	sdm636-pm660a-headset-jacktype-no-cdp.dtb \
+	sdm636-pm660a-headset-jacktype-no-rcm.dtb \
+	sdm636-pm660a-cdp.dtb \
+	sdm636-pm660a-mtp.dtb \
+	sdm636-pm660a-qrd.dtb \
+	sdm636-pm660a-rcm.dtb \
+	sdm636-usbc-audio-mtp.dtb \
+	sdm636-usbc-audio-rcm.dtb \
+	sda636-cdp.dtb \
+	sda636-mtp.dtb \
+	sda636-rcm.dtb \
+	sda636-pm660a-cdp.dtb \
+	sda636-pm660a-mtp.dtb \
+	sda636-pm660a-qrd-hdk.dtb \
+	sda636-pm660a-rcm.dtb
+endif
 endif
 
 ifeq ($(CONFIG_BUILD_ARM64_DT_OVERLAY),y)

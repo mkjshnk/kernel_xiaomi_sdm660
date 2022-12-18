@@ -27,12 +27,17 @@ DEFINE_MSM_MUTEX(msm_ois_mutex);
 #define CDBG(fmt, args...) pr_debug(fmt, ##args)
 #endif
 
+#ifdef CONFIG_MACH_XIAOMI_JASON
+#define OIS_FW_TRANS_SIZE (32*2)
+#endif
+
 static struct v4l2_file_operations msm_ois_v4l2_subdev_fops;
 static int32_t msm_ois_power_up(struct msm_ois_ctrl_t *o_ctrl);
 static int32_t msm_ois_power_down(struct msm_ois_ctrl_t *o_ctrl);
 
 static struct i2c_driver msm_ois_i2c_driver;
 
+#ifndef CONFIG_MACH_XIAOMI_JASON
 static int32_t data_type_to_num_bytes(
 	enum msm_camera_i2c_data_type data_type)
 {
@@ -56,6 +61,7 @@ static int32_t data_type_to_num_bytes(
 	}
 	return ret_val;
 }
+#endif
 
 static int32_t msm_ois_download(struct msm_ois_ctrl_t *o_ctrl)
 {
@@ -96,7 +102,11 @@ static int32_t msm_ois_download(struct msm_ois_ctrl_t *o_ctrl)
 	total_bytes = fw->size;
 	for (ptr = (uint8_t *)fw->data; total_bytes;
 		total_bytes -= bytes_in_tx, ptr += bytes_in_tx) {
+#ifndef CONFIG_MACH_XIAOMI_JASON
 		bytes_in_tx = (total_bytes > 10) ? 10 : total_bytes;
+#else
+		bytes_in_tx = (total_bytes > OIS_FW_TRANS_SIZE) ? OIS_FW_TRANS_SIZE : total_bytes;
+#endif
 		rc = o_ctrl->i2c_client.i2c_func_tbl->i2c_write_seq(
 			&o_ctrl->i2c_client, o_ctrl->oboard_info->opcode.prog,
 			 ptr, bytes_in_tx);
@@ -118,7 +128,11 @@ static int32_t msm_ois_download(struct msm_ois_ctrl_t *o_ctrl)
 	total_bytes = fw->size;
 	for (ptr = (uint8_t *)fw->data; total_bytes;
 		total_bytes -= bytes_in_tx, ptr += bytes_in_tx) {
+#ifndef CONFIG_MACH_XIAOMI_JASON
 		bytes_in_tx = (total_bytes > 10) ? 10 : total_bytes;
+#else
+		bytes_in_tx = (total_bytes > OIS_FW_TRANS_SIZE) ? OIS_FW_TRANS_SIZE : total_bytes;
+#endif
 		rc = o_ctrl->i2c_client.i2c_func_tbl->i2c_write_seq(
 			&o_ctrl->i2c_client, o_ctrl->oboard_info->opcode.coeff,
 			ptr, bytes_in_tx);
@@ -179,14 +193,23 @@ static int32_t msm_ois_write_settings(struct msm_ois_ctrl_t *o_ctrl,
 	uint16_t size, struct reg_settings_ois_t *settings)
 {
 	int32_t rc = -EFAULT;
-	int32_t i = 0, num_byte_seq = 0;
+	int32_t i = 0;
+#ifndef CONFIG_MACH_XIAOMI_JASON
+	int32_t num_byte_seq = 0;
 	uint8_t *reg_data_seq;
+#endif
 
 	struct msm_camera_i2c_seq_reg_array *reg_setting;
-
+#ifdef CONFIG_MACH_XIAOMI_JASON
+	enum msm_camera_i2c_reg_addr_type save_addr_type;
+	save_addr_type = o_ctrl->i2c_client.addr_type;
+#endif
 	CDBG("Enter\n");
 
 	for (i = 0; i < size; i++) {
+#ifdef CONFIG_MACH_XIAOMI_JASON
+		o_ctrl->i2c_client.addr_type = settings[i].addr_type;
+#endif
 		switch (settings[i].i2c_operation) {
 		case MSM_OIS_WRITE: {
 			switch (settings[i].data_type) {
@@ -202,8 +225,12 @@ static int32_t msm_ois_write_settings(struct msm_ois_ctrl_t *o_ctrl,
 			reg_setting =
 			kzalloc(sizeof(struct msm_camera_i2c_seq_reg_array),
 				GFP_KERNEL);
-				if (!reg_setting)
+				if (!reg_setting) {
+#ifdef CONFIG_MACH_XIAOMI_JASON
+					o_ctrl->i2c_client.addr_type = save_addr_type;
+#endif
 					return -ENOMEM;
+				}
 
 				reg_setting->reg_addr = settings[i].reg_addr;
 				reg_setting->reg_data[0] = (uint8_t)
@@ -226,8 +253,12 @@ static int32_t msm_ois_write_settings(struct msm_ois_ctrl_t *o_ctrl,
 					reg_setting->reg_data_size);
 				kfree(reg_setting);
 				reg_setting = NULL;
-				if (rc < 0)
+				if (rc < 0) {
+#ifdef CONFIG_MACH_XIAOMI_JASON
+					o_ctrl->i2c_client.addr_type = save_addr_type;
+#endif
 					return rc;
+				}
 				break;
 
 			default:
@@ -264,6 +295,7 @@ static int32_t msm_ois_write_settings(struct msm_ois_ctrl_t *o_ctrl,
 			break;
 		}
 		case MSM_OIS_READ: {
+#ifndef CONFIG_MACH_XIAOMI_JASON
 			switch (settings[i].data_type) {
 			case MSM_CAMERA_I2C_BYTE_DATA:
 			case MSM_CAMERA_I2C_WORD_DATA:
@@ -299,6 +331,7 @@ static int32_t msm_ois_write_settings(struct msm_ois_ctrl_t *o_ctrl,
 					settings[i].data_type);
 				break;
 			}
+#endif
 			break;
 		}
 
@@ -306,6 +339,9 @@ static int32_t msm_ois_write_settings(struct msm_ois_ctrl_t *o_ctrl,
 			break;
 		}
 	}
+#ifdef CONFIG_MACH_XIAOMI_JASON
+	o_ctrl->i2c_client.addr_type = save_addr_type;
+#endif
 	CDBG("Exit\n");
 	return rc;
 }
@@ -342,6 +378,15 @@ static int32_t msm_ois_power_down(struct msm_ois_ctrl_t *o_ctrl)
 
 	CDBG("Enter\n");
 	if (o_ctrl->ois_state != OIS_DISABLE_STATE) {
+#ifdef CONFIG_MACH_XIAOMI_JASON
+		rc = msm_camera_clk_enable(&o_ctrl->pdev->dev,
+			o_ctrl->clk_info, o_ctrl->clk_ptr,
+			o_ctrl->clk_info_size, false);
+		if (rc < 0) {
+			pr_err("%s: clk enable failed\n", __func__);
+			return rc;
+		}
+#endif
 
 		rc = msm_ois_vreg_control(o_ctrl, 0);
 		if (rc < 0) {
@@ -415,7 +460,11 @@ static int32_t msm_ois_control(struct msm_ois_ctrl_t *o_ctrl,
 	struct msm_ois_set_info_t *set_info)
 {
 	struct reg_settings_ois_t *settings = NULL;
+#ifndef CONFIG_MACH_XIAOMI_JASON
 	int32_t rc = 0, i = 0;
+#else
+	int32_t rc = 0;
+#endif
 	struct msm_camera_cci_client *cci_client = NULL;
 
 	CDBG("Enter\n");
@@ -459,6 +508,7 @@ static int32_t msm_ois_control(struct msm_ois_ctrl_t *o_ctrl,
 			set_info->ois_params.setting_size,
 			settings);
 
+#ifndef CONFIG_MACH_XIAOMI_JASON
 		for (i = 0; i < set_info->ois_params.setting_size; i++) {
 			if (settings[i].i2c_operation
 				== MSM_OIS_READ) {
@@ -476,6 +526,7 @@ static int32_t msm_ois_control(struct msm_ois_ctrl_t *o_ctrl,
 				settings[i].reg_data);
 			}
 		}
+#endif
 
 		kfree(settings);
 		if (rc < 0) {
@@ -521,31 +572,43 @@ static int32_t msm_ois_config(struct msm_ois_ctrl_t *o_ctrl,
 			pr_err("Failed ois control%d\n", rc);
 		break;
 	case CFG_OIS_I2C_WRITE_SEQ_TABLE: {
-		struct msm_camera_i2c_seq_reg_setting conf_array;
+		struct msm_camera_i2c_seq_reg_setting *conf_array = NULL;
 		struct msm_camera_i2c_seq_reg_array *reg_setting = NULL;
 
 #ifdef CONFIG_COMPAT
 		if (is_compat_task()) {
-			memcpy(&conf_array,
-				(void *)cdata->cfg.settings,
-				sizeof(struct msm_camera_i2c_seq_reg_setting));
-		}
+			conf_array = cdata->cfg.settings;
+		} else {
 #endif
-		if (copy_from_user(&conf_array,
+		conf_array = kzalloc(
+			(sizeof(struct msm_camera_i2c_seq_reg_setting)),
+			GFP_KERNEL);
+		if (!conf_array) {
+			pr_err("%s:%d failed\n", __func__, __LINE__);
+			rc = -ENOMEM;
+			break;
+		}
+		if (copy_from_user(conf_array,
 			(void __user *)cdata->cfg.settings,
 			sizeof(struct msm_camera_i2c_seq_reg_setting))) {
 			pr_err("%s:%d failed\n", __func__, __LINE__);
 			rc = -EFAULT;
 			break;
 		}
+#ifdef CONFIG_COMPAT
+		}
+#endif
 
-		if (!conf_array.size ||
-			conf_array.size > I2C_SEQ_REG_DATA_MAX) {
+		if (!conf_array->size ||
+			conf_array->size > I2C_SEQ_REG_DATA_MAX) {
 			pr_err("%s:%d failed\n", __func__, __LINE__);
 			rc = -EFAULT;
 			break;
 		}
-		reg_setting = kzalloc(conf_array.size *
+#ifdef CONFIG_COMPAT
+		if (!is_compat_task()) {
+#endif
+		reg_setting = kzalloc(conf_array->size *
 			(sizeof(struct msm_camera_i2c_seq_reg_array)),
 			GFP_KERNEL);
 		if (!reg_setting) {
@@ -554,8 +617,8 @@ static int32_t msm_ois_config(struct msm_ois_ctrl_t *o_ctrl,
 			break;
 		}
 		if (copy_from_user(reg_setting,
-			(void __user *)conf_array.reg_setting,
-			conf_array.size *
+			(void __user *)conf_array->reg_setting,
+			conf_array->size *
 			sizeof(struct msm_camera_i2c_seq_reg_array))) {
 			pr_err("%s:%d failed\n", __func__, __LINE__);
 			kfree(reg_setting);
@@ -563,10 +626,17 @@ static int32_t msm_ois_config(struct msm_ois_ctrl_t *o_ctrl,
 			break;
 		}
 
-		conf_array.reg_setting = reg_setting;
+		conf_array->reg_setting = reg_setting;
+#ifdef CONFIG_COMPAT
+		}
+#endif
 		rc = o_ctrl->i2c_client.i2c_func_tbl->i2c_write_seq_table(
-			&o_ctrl->i2c_client, &conf_array);
+			&o_ctrl->i2c_client, conf_array);
 		kfree(reg_setting);
+#ifdef CONFIG_COMPAT
+		if (!is_compat_task())
+			kfree(conf_array);
+#endif
 		break;
 	}
 	default:
@@ -732,6 +802,16 @@ static int32_t msm_ois_power_up(struct msm_ois_ctrl_t *o_ctrl)
 		return rc;
 	}
 
+#ifdef CONFIG_MACH_XIAOMI_JASON
+	rc = msm_camera_clk_enable(&o_ctrl->pdev->dev,
+				o_ctrl->clk_info, o_ctrl->clk_ptr,
+				o_ctrl->clk_info_size, true);
+	if (rc < 0) {
+		pr_err("%s: clk enable failed\n", __func__);
+		return rc;
+	}
+#endif
+
 	for (gpio = SENSOR_GPIO_AF_PWDM;
 		gpio < SENSOR_GPIO_MAX; gpio++) {
 		if (o_ctrl->gconf && o_ctrl->gconf->gpio_num_info &&
@@ -831,7 +911,7 @@ static int32_t msm_ois_i2c_probe(struct i2c_client *client,
 	ois_ctrl_t->msm_sd.sd.internal_ops = &msm_ois_internal_ops;
 	ois_ctrl_t->msm_sd.sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 	media_entity_pads_init(&ois_ctrl_t->msm_sd.sd.entity, 0, NULL);
-	ois_ctrl_t->msm_sd.sd.entity.function = MSM_CAMERA_SUBDEV_OIS;
+	ois_ctrl_t->msm_sd.sd.entity.group_id = MSM_CAMERA_SUBDEV_OIS;
 	ois_ctrl_t->msm_sd.close_seq = MSM_SD_CLOSE_2ND_CATEGORY | 0x2;
 	msm_sd_register(&ois_ctrl_t->msm_sd);
 	ois_ctrl_t->ois_state = OIS_DISABLE_STATE;
@@ -855,6 +935,7 @@ static long msm_ois_subdev_do_ioctl(
 	void *parg;
 	struct msm_camera_i2c_seq_reg_setting settings;
 	struct msm_camera_i2c_seq_reg_setting32 settings32;
+	struct msm_camera_i2c_seq_reg_array *reg_setting = NULL;
 
 	if (!file || !arg) {
 		pr_err("%s:failed NULL parameter\n", __func__);
@@ -901,7 +982,7 @@ static long msm_ois_subdev_do_ioctl(
 			settings.size = settings32.size;
 
 			settings.reg_setting =
-				kzalloc(
+				kzalloc(settings.size *
 				sizeof(struct msm_camera_i2c_seq_reg_array),
 				GFP_KERNEL);
 			if (!settings.reg_setting)
@@ -909,11 +990,13 @@ static long msm_ois_subdev_do_ioctl(
 			if (copy_from_user(settings.reg_setting,
 				(void __user *)
 				compat_ptr(settings32.reg_setting),
+				settings.size *
 				sizeof(struct msm_camera_i2c_seq_reg_array))) {
 				kfree(settings.reg_setting);
 				pr_err("%s:%d failed\n", __func__, __LINE__);
 				return -EFAULT;
 			}
+			reg_setting = settings.reg_setting;
 
 			ois_data.cfg.settings = &settings;
 			parg = &ois_data;
@@ -923,11 +1006,14 @@ static long msm_ois_subdev_do_ioctl(
 			break;
 		}
 		break;
+#ifndef CONFIG_MACH_XIAOMI_JASON
 	case VIDIOC_MSM_OIS_CFG:
 		pr_err("%s: invalid cmd 0x%x received\n", __func__, cmd);
 		return -EINVAL;
+#endif
 	}
 	rc = msm_ois_subdev_ioctl(sd, cmd, parg);
+	kfree(reg_setting);
 
 	return rc;
 }
@@ -1007,6 +1093,16 @@ static int32_t msm_ois_platform_probe(struct platform_device *pdev)
 		}
 	}
 
+#ifdef CONFIG_MACH_XIAOMI_JASON
+	/*Get clocks information*/
+	rc = msm_camera_get_clk_info(pdev,
+		&msm_ois_t->clk_info,
+		&msm_ois_t->clk_ptr,
+		&msm_ois_t->clk_info_size);
+	if (rc < 0)
+		pr_err("failed: msm_camera_get_clk_info rc %d", rc);
+#endif
+
 	msm_ois_t->ois_v4l2_subdev_ops = &msm_ois_subdev_ops;
 	msm_ois_t->ois_mutex = &msm_ois_mutex;
 
@@ -1034,7 +1130,7 @@ static int32_t msm_ois_platform_probe(struct platform_device *pdev)
 	snprintf(msm_ois_t->msm_sd.sd.name,
 		ARRAY_SIZE(msm_ois_t->msm_sd.sd.name), "msm_ois");
 	media_entity_pads_init(&msm_ois_t->msm_sd.sd.entity, 0, NULL);
-	msm_ois_t->msm_sd.sd.entity.function = MSM_CAMERA_SUBDEV_OIS;
+	msm_ois_t->msm_sd.sd.entity.group_id = MSM_CAMERA_SUBDEV_OIS;
 	msm_ois_t->msm_sd.close_seq = MSM_SD_CLOSE_2ND_CATEGORY | 0x2;
 	msm_sd_register(&msm_ois_t->msm_sd);
 	msm_ois_t->ois_state = OIS_DISABLE_STATE;
